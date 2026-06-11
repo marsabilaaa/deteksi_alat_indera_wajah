@@ -1,47 +1,145 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Deteksi Wajah (OpenCV.js)</title>
+    <title>Face & Feature Detector</title>
     <style>
-      body {
-        font-family: system-ui, Arial;
-        margin: 18px;
+      :root {
+        --bg: #f6f8fb;
+        --card: #ffffff;
+        --muted: #6b7280;
+        --accent: #2563eb;
       }
-      #controls {
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: Inter, system-ui, Arial;
+        margin: 0;
+        background: var(--bg);
+        color: #0f172a;
+      }
+      .container {
+        max-width: 1000px;
+        margin: 34px auto;
+        padding: 0 20px;
+      }
+      .header {
+        padding: 20px 0;
+        text-align: center;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 1.6rem;
+      }
+      .muted {
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      .card {
+        background: var(--card);
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+        border-radius: 12px;
+        padding: 18px;
+        margin-top: 18px;
+      }
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
         margin-bottom: 12px;
+      }
+      .file-label {
+        display: inline-block;
+      }
+      .btn {
+        background: #fff;
+        border: 1px solid #e6eefc;
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      .btn.small {
+        padding: 6px 10px;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #fff;
+        border: 0;
+      }
+      .btn.ghost {
+        background: transparent;
+        border: 1px solid #ddd;
+      }
+      .btn-group {
+        display: inline-flex;
+        gap: 8px;
+      }
+      .status {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .viewer {
+        display: flex;
+        justify-content: center;
+        padding: 8px;
       }
       canvas {
         max-width: 100%;
         height: auto;
-        border: 1px solid #ddd;
+        border-radius: 8px;
+        border: 1px solid #eef2ff;
       }
-      button {
-        margin-right: 8px;
+      input[type="file"] {
+        display: none;
+      }
+      @media (max-width: 640px) {
+        .controls {
+          flex-direction: column;
+          align-items: stretch;
+        }
       }
     </style>
   </head>
   <body>
-    <h2>Deteksi Wajah/Mata/Hidung/Mulut — Client-side (OpenCV.js)</h2>
+    <div class="container">
+      <header class="header">
+        <h1>Face & Feature Detector</h1>
+        <p class="muted">
+          Client-side detection using OpenCV.js — upload an image or use your
+          webcam.
+        </p>
+      </header>
 
-    <div id="controls">
-      <input id="fileInput" type="file" accept="image/*" />
-      <button id="startCam">Gunakan Webcam</button>
-      <button id="stopCam">Stop Webcam</button>
-      <button id="detectBtn">Deteksi Sekarang</button>
-      <span id="status"></span>
+      <main class="card">
+        <div class="controls">
+          <label class="file-label">
+            <input id="fileInput" type="file" accept="image/*" />
+            <span class="btn small">Upload Image</span>
+          </label>
+          <div class="btn-group">
+            <button id="startCam" class="btn">Start Webcam</button>
+            <button id="stopCam" class="btn ghost">Stop Webcam</button>
+            <button id="detectBtn" class="btn primary">Detect</button>
+          </div>
+          <div id="status" class="status">Initializing...</div>
+        </div>
+
+        <div class="viewer">
+          <video
+            id="video"
+            width="640"
+            height="480"
+            autoplay
+            playsinline
+            style="display: none"
+          ></video>
+          <canvas id="canvasOutput" aria-label="detection-canvas"></canvas>
+        </div>
+      </main>
     </div>
-
-    <video
-      id="video"
-      width="640"
-      height="480"
-      autoplay
-      playsinline
-      style="display: none"
-    ></video>
-    <canvas id="canvasOutput"></canvas>
 
     <script src="https://docs.opencv.org/4.x/opencv.js" async></script>
     <script src="static/detect.js"></script>

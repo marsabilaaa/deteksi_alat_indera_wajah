@@ -7,25 +7,35 @@
   let stream = null;
 
   async function fetchAndLoadCascade(name) {
-    try {
-      const res = await fetch("/" + name);
-      const buf = await res.arrayBuffer();
-      cv.FS_createDataFile("/", name, new Uint8Array(buf), true, false, false);
-      return true;
-    } catch (e) {
-      console.error("Failed load cascade", name, e);
-      return false;
+    const candidates = ["./" + name, "/" + name, "/static/" + name, name];
+    for (const path of candidates) {
+      try {
+        const res = await fetch(path);
+        if (!res.ok) {
+          console.debug("cascade not found at", path, "status", res.status);
+          continue;
+        }
+        const buf = await res.arrayBuffer();
+        cv.FS_createDataFile(
+          "/",
+          name,
+          new Uint8Array(buf),
+          true,
+          false,
+          false,
+        );
+        console.log("Loaded cascade", name, "from", path);
+        return true;
+      } catch (e) {
+        console.debug("fetch failed for", path, e);
+        continue;
+      }
     }
+    console.error("Failed to load cascade from any candidate path:", name);
+    return false;
   }
 
-  async function initCascades() {
-    statusEl().textContent = "Memuat model...";
-    await fetchAndLoadCascade("haarcascade_frontalface_default.xml");
-    await fetchAndLoadCascade("haarcascade_eye.xml");
-    await fetchAndLoadCascade("haarcascade_mcs_nose.xml");
-    await fetchAndLoadCascade("haarcascade_mcs_mouth.xml");
-    statusEl().textContent = "Model siap.";
-  }
+  // initCascades is defined later after cv runtime is ready
 
   function drawRects(src, rects, color) {
     for (let i = 0; i < rects.size(); ++i) {
@@ -41,6 +51,10 @@
   }
 
   function detectImage() {
+    if (!window.cascadesLoaded) {
+      statusEl().textContent = "Model not ready — please wait...";
+      return;
+    }
     try {
       let src = cv.imread(canvas);
       let gray = new cv.Mat();
@@ -86,7 +100,7 @@
       mouthCascade.delete();
     } catch (err) {
       console.error(err);
-      statusEl().textContent = "Deteksi gagal: " + err;
+      statusEl().textContent = "Detection failed: " + err;
     }
   }
 
@@ -104,7 +118,7 @@
       stream = await navigator.mediaDevices.getUserMedia({ video: true });
       video.srcObject = stream;
       video.style.display = "block";
-      statusEl().textContent = "Webcam aktif.";
+      statusEl().textContent = "Webcam active.";
       // draw video frame to canvas continuously
       const ctx = canvas.getContext("2d");
       video.addEventListener("playing", function () {
@@ -117,14 +131,14 @@
         })();
       });
     } catch (e) {
-      statusEl().textContent = "Gagal buka webcam.";
+      statusEl().textContent = "Failed to open webcam.";
       console.error(e);
     }
   });
 
   document.getElementById("stopCam").addEventListener("click", () => {
     stopCam();
-    statusEl().textContent = "Webcam dihentikan.";
+    statusEl().textContent = "Webcam stopped.";
   });
 
   fileInput.addEventListener("change", (ev) => {
@@ -142,22 +156,41 @@
 
   document.getElementById("detectBtn").addEventListener("click", () => {
     detectImage();
-    statusEl().textContent = "Deteksi selesai.";
+    statusEl().textContent = "Detection complete.";
   });
 
   // Wait for OpenCV to be ready then load cascades
-  if (typeof cv === "undefined") {
-    let check = setInterval(() => {
-      if (typeof cv !== "undefined" && cv["onRuntimeInitialized"]) {
+  (function waitCv() {
+    const check = setInterval(() => {
+      if (window.cv && typeof cv.onRuntimeInitialized !== "undefined") {
         clearInterval(check);
-        cv["onRuntimeInitialized"] = () => {
+        cv.onRuntimeInitialized = () => {
           initCascades();
         };
       }
     }, 100);
-  } else {
-    cv["onRuntimeInitialized"] = () => {
-      initCascades();
-    };
+  })();
+
+  // flag when cascades are loaded
+  window.cascadesLoaded = false;
+
+  async function initCascades() {
+    statusEl().textContent = "Loading model...";
+    const list = [
+      "haarcascade_frontalface_default.xml",
+      "haarcascade_eye.xml",
+      "haarcascade_mcs_nose.xml",
+      "haarcascade_mcs_mouth.xml",
+    ];
+    for (const f of list) {
+      const ok = await fetchAndLoadCascade(f);
+      if (!ok) {
+        statusEl().textContent =
+          "Failed to load " + f + " — check deployment paths.";
+        return;
+      }
+    }
+    window.cascadesLoaded = true;
+    statusEl().textContent = "Model ready.";
   }
 })();
