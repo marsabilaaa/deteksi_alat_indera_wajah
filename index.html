@@ -46,10 +46,20 @@
       }
       .controls {
         display: flex;
+        justify-content: space-between;
         align-items: center;
         gap: 12px;
         flex-wrap: wrap;
         margin-bottom: 12px;
+      }
+      .controls-left,
+      .controls-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .controls-right {
+        margin-left: auto;
       }
       .file-label {
         display: inline-block;
@@ -83,8 +93,18 @@
       }
       .viewer {
         display: flex;
-        justify-content: center;
+        justify-content: flex-start;
         padding: 8px;
+        position: relative;
+      }
+      .credit {
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 0.92rem;
+        text-align: left;
+      }
+      .credit p {
+        margin: 0;
       }
       canvas {
         max-width: 100%;
@@ -115,16 +135,18 @@
 
       <main class="card">
         <div class="controls">
-          <label class="file-label">
-            <input id="fileInput" type="file" accept="image/*" />
-            <span class="btn small">Upload Image</span>
-          </label>
-          <div class="btn-group">
+          <div class="controls-left">
+            <label class="file-label">
+              <input id="fileInput" type="file" accept="image/*" />
+              <span class="btn small">Upload Image</span>
+            </label>
+            <div id="status" class="status">Initializing...</div>
+          </div>
+          <div class="controls-right">
             <button id="startCam" class="btn">Start Webcam</button>
             <button id="stopCam" class="btn ghost">Stop Webcam</button>
             <button id="detectBtn" class="btn primary">Detect</button>
           </div>
-          <div id="status" class="status">Initializing...</div>
         </div>
 
         <div class="viewer">
@@ -137,6 +159,12 @@
             style="display: none"
           ></video>
           <canvas id="canvasOutput" aria-label="detection-canvas"></canvas>
+        </div>
+        <div class="credit">
+          <p>
+            Uses Haar cascade XML files from OpenCV / Intel License and
+            contributor licenses.
+          </p>
         </div>
       </main>
     </div>

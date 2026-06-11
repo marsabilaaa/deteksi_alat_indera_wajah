@@ -5,6 +5,29 @@
   const video = document.getElementById("video");
   const fileInput = document.getElementById("fileInput");
   let stream = null;
+  let videoLoopRunning = false;
+  let isDrawing = false;
+  let detectIntervalId = null;
+  let faceCascade = null,
+    eyeCascade = null,
+    noseCascade = null,
+    mouthCascade = null;
+  let lastRawImageData = null;
+
+  // create overlay canvas to draw boxes/text (keeps main canvas raw)
+  const overlay = document.createElement("canvas");
+  overlay.id = "overlayCanvas";
+  overlay.style.position = "absolute";
+  overlay.style.top = "0";
+  overlay.style.left = "0";
+  overlay.style.pointerEvents = "none";
+  overlay.style.maxWidth = "100%";
+  // ensure parent is positioned
+  if (canvas.parentNode)
+    canvas.parentNode.style.position =
+      canvas.parentNode.style.position || "relative";
+  canvas.parentNode.appendChild(overlay);
+  const overlayCtx = overlay.getContext("2d", { willReadFrequently: true });
 
   async function fetchAndLoadCascade(name) {
     const candidates = ["./" + name, "/" + name, "/static/" + name, name];
@@ -37,18 +60,7 @@
 
   // initCascades is defined later after cv runtime is ready
 
-  function drawRects(src, rects, color) {
-    for (let i = 0; i < rects.size(); ++i) {
-      let r = rects.get(i);
-      cv.rectangle(
-        src,
-        new cv.Point(r.x, r.y),
-        new cv.Point(r.x + r.width, r.y + r.height),
-        color,
-        2,
-      );
-    }
-  }
+  // drawRects removed: overlay drawing handled in detectImage to keep main canvas unmodified
 
   function detectImage() {
     if (!window.cascadesLoaded) {
@@ -60,44 +72,62 @@
       let gray = new cv.Mat();
       cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
 
-      let faceCascade = new cv.CascadeClassifier();
-      faceCascade.load("haarcascade_frontalface_default.xml");
+      // use preloaded cascade classifiers and draw results on overlay
+      overlay.width = canvas.width;
+      overlay.height = canvas.height;
+      overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+      overlayCtx.lineWidth = 2;
+      overlayCtx.font = "16px sans-serif";
+
       let faces = new cv.RectVector();
       let msize = new cv.Size(0, 0);
-      faceCascade.detectMultiScale(gray, faces, 1.3, 5, 0, msize, msize);
-      drawRects(src, faces, new cv.Scalar(255, 0, 0, 255));
+      if (faceCascade)
+        faceCascade.detectMultiScale(gray, faces, 1.3, 5, 0, msize, msize);
+      for (let i = 0; i < faces.size(); ++i) {
+        const r = faces.get(i);
+        overlayCtx.strokeStyle = "rgba(255,0,0,0.9)";
+        overlayCtx.fillStyle = "rgba(255,0,0,0.9)";
+        overlayCtx.strokeRect(r.x, r.y, r.width, r.height);
+        overlayCtx.fillText("Wajah", r.x, Math.max(12, r.y - 6));
+      }
 
-      let eyeCascade = new cv.CascadeClassifier();
-      eyeCascade.load("haarcascade_eye.xml");
       let eyes = new cv.RectVector();
-      eyeCascade.detectMultiScale(gray, eyes, 1.1, 22);
-      drawRects(src, eyes, new cv.Scalar(36, 255, 12, 255));
+      if (eyeCascade) eyeCascade.detectMultiScale(gray, eyes, 1.1, 22);
+      for (let i = 0; i < eyes.size(); ++i) {
+        const r = eyes.get(i);
+        overlayCtx.strokeStyle = "rgba(36,255,12,0.9)";
+        overlayCtx.fillStyle = "rgba(36,255,12,0.9)";
+        overlayCtx.strokeRect(r.x, r.y, r.width, r.height);
+        overlayCtx.fillText("Mata", r.x, Math.max(12, r.y - 6));
+      }
 
-      let noseCascade = new cv.CascadeClassifier();
-      noseCascade.load("haarcascade_mcs_nose.xml");
       let noses = new cv.RectVector();
-      noseCascade.detectMultiScale(gray, noses, 1.1, 22);
-      drawRects(src, noses, new cv.Scalar(0, 255, 255, 255));
+      if (noseCascade) noseCascade.detectMultiScale(gray, noses, 1.1, 22);
+      for (let i = 0; i < noses.size(); ++i) {
+        const r = noses.get(i);
+        overlayCtx.strokeStyle = "rgba(0,255,255,0.9)";
+        overlayCtx.fillStyle = "rgba(0,255,255,0.9)";
+        overlayCtx.strokeRect(r.x, r.y, r.width, r.height);
+        overlayCtx.fillText("Hidung", r.x, Math.max(12, r.y - 6));
+      }
 
-      let mouthCascade = new cv.CascadeClassifier();
-      mouthCascade.load("haarcascade_mcs_mouth.xml");
       let mouths = new cv.RectVector();
-      mouthCascade.detectMultiScale(gray, mouths, 1.1, 22);
-      drawRects(src, mouths, new cv.Scalar(255, 0, 255, 255));
+      if (mouthCascade) mouthCascade.detectMultiScale(gray, mouths, 1.1, 22);
+      for (let i = 0; i < mouths.size(); ++i) {
+        const r = mouths.get(i);
+        overlayCtx.strokeStyle = "rgba(255,0,255,0.9)";
+        overlayCtx.fillStyle = "rgba(255,0,255,0.9)";
+        overlayCtx.strokeRect(r.x, r.y, r.width, r.height);
+        overlayCtx.fillText("Mulut", r.x, Math.max(12, r.y - 6));
+      }
 
-      cv.imshow(canvas, src);
-
-      // cleanup
+      // cleanup small mats
       src.delete();
       gray.delete();
       faces.delete();
       eyes.delete();
       noses.delete();
       mouths.delete();
-      faceCascade.delete();
-      eyeCascade.delete();
-      noseCascade.delete();
-      mouthCascade.delete();
     } catch (err) {
       console.error(err);
       statusEl().textContent = "Detection failed: " + err;
@@ -108,7 +138,25 @@
     if (stream) {
       stream.getTracks().forEach((t) => t.stop());
       stream = null;
+      // ensure draw loop stops and canvas remains
       video.style.display = "none";
+      if (detectIntervalId) {
+        clearInterval(detectIntervalId);
+        detectIntervalId = null;
+      }
+      isDrawing = false;
+      // restore last raw frame (remove overlays)
+      try {
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (lastRawImageData) ctx.putImageData(lastRawImageData, 0, 0);
+      } catch (e) {
+        /* ignore */
+      }
+      try {
+        overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+      } catch (e) {
+        /* ignore */
+      }
     }
   }
 
@@ -117,24 +165,65 @@
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: true });
       video.srcObject = stream;
-      video.style.display = "block";
+      // keep the raw video hidden and draw only to canvas (avoids duplicate frames)
+      video.style.display = "none";
       statusEl().textContent = "Webcam active.";
-      // draw video frame to canvas continuously
-      const ctx = canvas.getContext("2d");
-      video.addEventListener("playing", function () {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        (function drawLoop() {
-          if (!stream) return;
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          requestAnimationFrame(drawLoop);
-        })();
-      });
+      // start a single draw loop (prevent duplicates)
+      startVideoLoop();
     } catch (e) {
       statusEl().textContent = "Failed to open webcam.";
       console.error(e);
     }
   });
+
+  function startVideoLoop() {
+    if (videoLoopRunning) return;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    videoLoopRunning = true;
+    (function drawLoop() {
+      if (!stream) {
+        videoLoopRunning = false;
+        return;
+      }
+      // ensure canvas matches video size
+      if (video.videoWidth && video.videoHeight) {
+        if (
+          canvas.width !== video.videoWidth ||
+          canvas.height !== video.videoHeight
+        ) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          // position overlay to match canvas
+          try {
+            overlay.style.left = canvas.offsetLeft + "px";
+            overlay.style.top = canvas.offsetTop + "px";
+            overlay.width = canvas.width;
+            overlay.height = canvas.height;
+          } catch (e) {}
+        }
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        try {
+          lastRawImageData = ctx.getImageData(
+            0,
+            0,
+            canvas.width,
+            canvas.height,
+          );
+        } catch (e) {
+          /* ignore read errors */
+        }
+      }
+      requestAnimationFrame(drawLoop);
+    })();
+    // start live detection loop if cascades are loaded
+    if (!detectIntervalId) {
+      detectIntervalId = setInterval(() => {
+        if (window.cascadesLoaded) detectImage();
+      }, 500);
+    }
+    // run one immediate detection when webcam starts (if model loaded)
+    if (window.cascadesLoaded) detectImage();
+  }
 
   document.getElementById("stopCam").addEventListener("click", () => {
     stopCam();
@@ -148,8 +237,13 @@
     img.onload = () => {
       canvas.width = img.naturalWidth;
       canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
       ctx.drawImage(img, 0, 0);
+      try {
+        overlay.width = canvas.width;
+        overlay.height = canvas.height;
+        overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+      } catch (e) {}
     };
     img.src = URL.createObjectURL(f);
   });
@@ -190,7 +284,21 @@
         return;
       }
     }
-    window.cascadesLoaded = true;
-    statusEl().textContent = "Model ready.";
+    try {
+      // create classifiers once and keep them
+      faceCascade = new cv.CascadeClassifier();
+      faceCascade.load("haarcascade_frontalface_default.xml");
+      eyeCascade = new cv.CascadeClassifier();
+      eyeCascade.load("haarcascade_eye.xml");
+      noseCascade = new cv.CascadeClassifier();
+      noseCascade.load("haarcascade_mcs_nose.xml");
+      mouthCascade = new cv.CascadeClassifier();
+      mouthCascade.load("haarcascade_mcs_mouth.xml");
+      window.cascadesLoaded = true;
+      statusEl().textContent = "Model ready.";
+    } catch (err) {
+      console.error("Failed to initialize classifiers", err);
+      statusEl().textContent = "Failed to initialize classifiers.";
+    }
   }
 })();
