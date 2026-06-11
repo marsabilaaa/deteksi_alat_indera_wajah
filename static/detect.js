@@ -30,32 +30,20 @@
   const overlayCtx = overlay.getContext("2d", { willReadFrequently: true });
 
   async function fetchAndLoadCascade(name) {
-    const candidates = ["./" + name, "/" + name, "/static/" + name, name];
-    for (const path of candidates) {
-      try {
-        const res = await fetch(path);
-        if (!res.ok) {
-          console.debug("cascade not found at", path, "status", res.status);
-          continue;
-        }
-        const buf = await res.arrayBuffer();
-        cv.FS_createDataFile(
-          "/",
-          name,
-          new Uint8Array(buf),
-          true,
-          false,
-          false,
-        );
-        console.log("Loaded cascade", name, "from", path);
-        return true;
-      } catch (e) {
-        console.debug("fetch failed for", path, e);
-        continue;
+    try {
+      const res = await fetch(name);
+      if (!res.ok) {
+        console.error("cascade not found at", name, "status", res.status);
+        return false;
       }
+      const buf = await res.arrayBuffer();
+      cv.FS_createDataFile("/", name, new Uint8Array(buf), true, false, false);
+      console.log("Loaded cascade", name);
+      return true;
+    } catch (e) {
+      console.error("Failed to load cascade", name, e);
+      return false;
     }
-    console.error("Failed to load cascade from any candidate path:", name);
-    return false;
   }
 
   // initCascades is defined later after cv runtime is ready
@@ -276,13 +264,12 @@
       "haarcascade_mcs_nose.xml",
       "haarcascade_mcs_mouth.xml",
     ];
-    for (const f of list) {
-      const ok = await fetchAndLoadCascade(f);
-      if (!ok) {
-        statusEl().textContent =
-          "Failed to load " + f + " — check deployment paths.";
-        return;
-      }
+    const results = await Promise.all(list.map(fetchAndLoadCascade));
+    const failed = results.findIndex((ok) => !ok);
+    if (failed !== -1) {
+      statusEl().textContent =
+        "Failed to load " + list[failed] + " — check deployment paths.";
+      return;
     }
     try {
       // create classifiers once and keep them

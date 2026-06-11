@@ -169,7 +169,12 @@
       </main>
     </div>
 
-    <script src="https://docs.opencv.org/4.x/opencv.js" async></script>
+    <link
+      rel="preload"
+      href="https://docs.opencv.org/4.x/opencv.js"
+      as="script"
+    />
+    <script src="https://docs.opencv.org/4.x/opencv.js" defer></script>
     <script src="static/detect.js"></script>
   </body>
 </html>
