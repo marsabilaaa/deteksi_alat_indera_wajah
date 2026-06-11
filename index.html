@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Deteksi Wajah (OpenCV.js)</title>
+    <style>
+      body {
+        font-family: system-ui, Arial;
+        margin: 18px;
+      }
+      #controls {
+        margin-bottom: 12px;
+      }
+      canvas {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid #ddd;
+      }
+      button {
+        margin-right: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Deteksi Wajah/Mata/Hidung/Mulut — Client-side (OpenCV.js)</h2>
+
+    <div id="controls">
+      <input id="fileInput" type="file" accept="image/*" />
+      <button id="startCam">Gunakan Webcam</button>
+      <button id="stopCam">Stop Webcam</button>
+      <button id="detectBtn">Deteksi Sekarang</button>
+      <span id="status"></span>
+    </div>
+
+    <video
+      id="video"
+      width="640"
+      height="480"
+      autoplay
+      playsinline
+      style="display: none"
+    ></video>
+    <canvas id="canvasOutput"></canvas>
+
+    <script src="https://docs.opencv.org/4.x/opencv.js" async></script>
+    <script src="static/detect.js"></script>
+  </body>
+</html>
